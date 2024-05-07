@@ -81,6 +81,54 @@
 <body>
     <header>This is a Lacrosse Timer Website</header>
     <main>
+        <script>
+            function setupTimer(index) {
+                const select = document.getElementById('setTime' + index);
+                const display = document.getElementById('time' + index);
+                display.textContent = select.value;
+            }
+
+            function startTimer(index) {
+                const display = document.getElementById('time' + index);
+                let time = hmsToSecondsOnly(display.textContent);
+                const interval = setInterval(() => {
+                    if (time <= 0) {
+                        clearInterval(interval);
+                        alert('Timer ' + index + ' has finished!');
+                        display.textContent = '00:00:00';
+                    } else {
+                        time--;
+                        display.textContent = secondsToHMS(time);
+                    }
+                }, 1000);
+            }
+
+            function stopTimer(index, interval) {
+                clearInterval(interval);
+                const display = document.getElementById('time' + index);
+                display.textContent = '00:00:00';
+            }
+
+            function secondsToHMS(secs) {
+                const hours = Math.floor(secs / 3600);
+                const minutes = Math.floor((secs % 3600) / 60);
+                const seconds = secs % 60;
+                return [hours, minutes, seconds]
+                    .map(v => v < 10 ? "0" + v : v)
+                    .join(":");
+            }
+
+            function hmsToSecondsOnly(str) {
+                var p = str.split(':'),
+                    s = 0, m = 1;
+
+                while (p.length > 0) {
+                    s += m * parseInt(p.pop(), 10);
+                    m *= 60;
+                }
+                return s;
+            }
+        </script>
         <!-- Timers go here -->
         <div class="timer" id="timer1">
             <input type="text" id="player1" placeholder="Player Number">
@@ -250,7 +298,6 @@
         <button onclick="stopTimer(8)">Stop</button>
     </div>
     <!-- Repeat the above div for each timer, updating ids and function parameters to timer2, timer3, etc. -->
-        <!-- Timer structures -->
     </main>
     <footer>&copy; Dan Finn</footer>
     <div class="control-buttons">
