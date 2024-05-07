@@ -28,7 +28,7 @@
             padding: 10px;
             font-size: 16px;
             width: 90%;
-            box-sizing: border-box; /* Ensures padding doesn't affect width */
+            box-sizing: border-box;
         }
         button {
             width: auto;
@@ -56,22 +56,22 @@
             top: 0;
             left: 0;
             right: 0;
-            z-index: 1000; /* Ensures header stays on top */
+            z-index: 1000;
         }
         main {
-            padding-top: 70px; /* Space for header */
-            padding-bottom: 50px; /* Space for footer control buttons */
+            padding-top: 70px;
+            padding-bottom: 50px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            overflow: auto; /* Ensures content is scrollable */
+            overflow: auto;
         }
         footer {
             text-align: center;
             padding: 10px;
             font-size: 16px;
             position: fixed;
-            bottom: 50px; /* Position above control buttons */
+            bottom: 50px;
             left: 0;
             right: 0;
             background-color: #ddd;
@@ -82,46 +82,69 @@
     <header>This is a Lacrosse Timer Website</header>
     <main>
         <script>
+            let intervals = []; // Store interval IDs for each timer
+            let pausedTimes = []; // Store paused times for each timer
+
             function setupTimer(index) {
                 const select = document.getElementById('setTime' + index);
+                pausedTimes[index] = hmsToSecondsOnly(select.value); // Update the paused time to new selection
                 const display = document.getElementById('time' + index);
-                display.textContent = select.value;
+                display.textContent = secondsToHMS(pausedTimes[index]); // Update display to new set time
             }
 
             function startTimer(index) {
                 const display = document.getElementById('time' + index);
-                let time = hmsToSecondsOnly(display.textContent);
-                const interval = setInterval(() => {
+                let time = pausedTimes[index];
+                if (time <= 0) return; // Prevents timer from starting if already at zero
+                clearInterval(intervals[index]); // Clear existing interval if any
+                intervals[index] = setInterval(() => {
                     if (time <= 0) {
-                        clearInterval(interval);
-                        alert('Timer ' + index + ' has finished!');
+                        clearInterval(intervals[index]);
                         display.textContent = '00:00:00';
+                        alert('Timer ' + index + ' has finished!');
                     } else {
                         time--;
                         display.textContent = secondsToHMS(time);
+                        pausedTimes[index] = time; // Update paused time
                     }
                 }, 1000);
             }
 
-            function stopTimer(index, interval) {
-                clearInterval(interval);
-                const display = document.getElementById('time' + index);
-                display.textContent = '00:00:00';
+            function stopTimer(index) {
+                clearInterval(intervals[index]); // Simply clear the interval, preserving the current display
+            }
+
+            function resumeTimer(index) {
+                startTimer(index); // Utilize startTimer to resume to keep code DRY
+            }
+
+            function startAllTimers() {
+                for (let i = 1; i <= 8; i++) {
+                    startTimer(i);
+                }
+            }
+
+            function stopAllTimers() {
+                for (let i = 1; i <= 8; i++) {
+                    stopTimer(i);
+                }
+            }
+
+            function resumeAllTimers() {
+                for (let i = 1; i <= 8; i++) {
+                    resumeTimer(i);
+                }
             }
 
             function secondsToHMS(secs) {
                 const hours = Math.floor(secs / 3600);
                 const minutes = Math.floor((secs % 3600) / 60);
                 const seconds = secs % 60;
-                return [hours, minutes, seconds]
-                    .map(v => v < 10 ? "0" + v : v)
-                    .join(":");
+                return [hours, minutes, seconds].map(v => v < 10 ? "0" + v : v).join(":");
             }
 
             function hmsToSecondsOnly(str) {
-                var p = str.split(':'),
-                    s = 0, m = 1;
-
+                var p = str.split(':'), s = 0, m = 1;
                 while (p.length > 0) {
                     s += m * parseInt(p.pop(), 10);
                     m *= 60;
@@ -303,6 +326,7 @@
     <div class="control-buttons">
         <button onclick="startAllTimers()">Start All</button>
         <button onclick="stopAllTimers()">Stop All</button>
+        <button onclick="resumeAllTimers()">Resume All</button>
     </div>
 </body>
 </html>
