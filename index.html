@@ -61,6 +61,20 @@
             display: flex;
             justify-content: space-around;
             padding: 10px 0;
+            flex-wrap: wrap;
+        }
+        .control-buttons button {
+            margin: 5px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background: white;
+            color: #007BFF;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+            min-width: 120px;
+            max-width: 200px;
         }
         header {
             width: 100%;
@@ -77,7 +91,7 @@
         }
         main {
             padding-top: 70px;
-            padding-bottom: 50px;
+            padding-bottom: 100px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -88,7 +102,7 @@
             padding: 10px;
             font-size: 16px;
             position: fixed;
-            bottom: 50px;
+            bottom: 70px;
             left: 0;
             right: 0;
             background-color: #ddd;
@@ -130,6 +144,16 @@
             cursor: pointer;
             width: 100%;
         }
+        @media (max-width: 600px) {
+            .control-buttons {
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+            .control-buttons button {
+                font-size: 14px;
+                padding: 8px 12px;
+                min-width: 100px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -140,10 +164,39 @@
     </div>
     <main id="timerContainer">
         <script>
+            let wakeLock = null;
+
+            // Function to request wake lock
+            async function requestWakeLock() {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock was released');
+                        requestWakeLock(); // Try to re-acquire wake lock
+                    });
+                    console.log('Wake Lock is active');
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                }
+            }
+
+            // Request wake lock when page loads
+            document.addEventListener('DOMContentLoaded', () => {
+                requestWakeLock();
+            });
+
+            // Re-request wake lock when page becomes visible
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    requestWakeLock();
+                }
+            });
+
             let intervals = []; // Store interval IDs for each timer
             let pausedTimes = []; // Store paused times for each timer
             let visibleTimers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; // Track visible timers
             let nextTimerId = 16; // ID for the next new timer
+            let isPaused = {}; // Track paused state for each timer
 
             function setupTimer(index) {
                 const select = document.getElementById('setTime' + index);
@@ -156,6 +209,7 @@
 
                 pausedTimes[index] = hmsToSecondsOnly(select.value);
                 display.textContent = secondsToHMS(pausedTimes[index]);
+                isPaused[index] = true;
             }
 
             function startTimer(index) {
@@ -168,10 +222,12 @@
                         clearInterval(intervals[index]);
                     }
                 }, 1000);
+                isPaused[index] = false;
             }
 
             function stopTimer(index) {
                 clearInterval(intervals[index]);
+                isPaused[index] = true;
             }
 
             function clearTimer(index) {
@@ -179,11 +235,14 @@
                 pausedTimes[index] = 0;
                 const display = document.getElementById('time' + index);
                 display.textContent = '00:00:00';
+                isPaused[index] = true;
             }
 
             function startAllTimers() {
                 for (let i of visibleTimers) {
-                    startTimer(i);
+                    if (pausedTimes[i] > 0) {
+                        startTimer(i);
+                    }
                 }
             }
 
@@ -193,9 +252,19 @@
                 }
             }
 
+            function pauseAllTimers() {
+                for (let i of visibleTimers) {
+                    if (!isPaused[i] && pausedTimes[i] > 0) {
+                        stopTimer(i);
+                    }
+                }
+            }
+
             function resumeAllTimers() {
                 for (let i of visibleTimers) {
-                    startTimer(i);
+                    if (isPaused[i] && pausedTimes[i] > 0) {
+                        startTimer(i);
+                    }
                 }
             }
 
@@ -207,6 +276,7 @@
             }
 
             function hmsToSecondsOnly(str) {
+                if (str === "Not in use") return 0;
                 var p = str.split(':'), s = 0, m = 1;
                 while (p.length > 0) {
                     s += m * parseInt(p.pop(), 10);
@@ -216,16 +286,11 @@
             }
             
             function removeTimer(index) {
-                // Stop the timer if it's running
                 stopTimer(index);
-                
-                // Remove the timer element from the DOM
                 const timerElement = document.getElementById('timer' + index);
                 if (timerElement) {
                     timerElement.style.display = 'none';
                 }
-                
-                // Remove from visible timers array
                 const indexInArray = visibleTimers.indexOf(index);
                 if (indexInArray > -1) {
                     visibleTimers.splice(indexInArray, 1);
@@ -234,11 +299,7 @@
             
             function toggleSettings() {
                 const panel = document.getElementById('settingsPanel');
-                if (panel.style.display === 'block') {
-                    panel.style.display = 'none';
-                } else {
-                    panel.style.display = 'block';
-                }
+                panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
             }
             
             function addNewTimer() {
@@ -286,20 +347,13 @@
                     <input type="text" id="penaltyTime${newTimerId}" placeholder="Time of Penalty (Hour:Min)">
                 `;
                 
-                // Add the new timer to the container
                 timerContainer.appendChild(newTimer);
-                
-                // Add to visible timers array
                 visibleTimers.push(newTimerId);
-                
-                // Initialize the timer
                 setupTimer(newTimerId);
-                
-                // Hide settings panel after adding
                 document.getElementById('settingsPanel').style.display = 'none';
             }
         </script>
-        
+
         <!-- Timer 1 -->
         <div class="timer" id="timer1">
             <button class="close-button" onclick="removeTimer(1)">✕</button>
@@ -559,81 +613,320 @@
             <input type="text" id="penaltyTime7" placeholder="Time of Penalty (Hour:Min)">
         </div>
 
-        <!-- Timer 8 -->
-        <div class="timer" id="timer8">
-            <button class="close-button" onclick="removeTimer(8)">✕</button>
-            <input type="text" id="player8" placeholder="Player Number">
-            <input type="text" id="team8" placeholder="Team Name">
-            <select id="setTime8" onchange="setupTimer(8)">
-                <option value="Not in use">Not in use</option>
-                <option value="00:00:30">30 seconds</option>
-                <option value="00:01:00">1 minute</option>
-                <option value="00:01:30">1 minute 30 seconds</option>
-                <option value="00:02:00">2 minutes</option>
-                <option value="00:02:30">2 minutes 30 seconds</option>
-                <option value="00:03:00">3 minutes</option>
-                <option value="00:03:30">3 minutes 30 seconds</option>
-                <option value="00:04:00">4 minutes</option>
-                <option value="00:04:30">4 minutes 30 seconds</option>
-                <option value="00:05:00">5 minutes</option>
-            </select>
-            <div id="time8">00:00:00</div>
-            <button onclick="startTimer(8)">Start</button>
-            <button onclick="stopTimer(8)">Stop</button>
-            <button onclick="clearTimer(8)">Released</button>
-            <select id="penaltyType8">
-                <option value="">Select Penalty Type</option>
-                <option value="Standard Foul">Foul</option>
-                <option value="Slash">Slash</option>
-                <option value="Push">Push</option>
-                <option value="Crease violation">Crease</option>
-                <option value="Crosscheck">Crosscheck</option>
-                <option value="illegal procedure">IllegalProcedure</option>
-                <option value="illegal screens">Screen</option>
-                <option value="interference">interference</option>
-                <option value="Game Misconduct">Misconduct</option>
-            </select>
-            <input type="text" id="penaltyTime8" placeholder="Time of Penalty (Hour:Min)">
-        </div>
-
-        <!-- Timer 9 -->
-        <div class="timer" id="timer9">
-            <button class="close-button" onclick="removeTimer(9)">✕</button>
-            <input type="text" id="player9" placeholder="Player Number">
-            <input type="text" id="team9" placeholder="Team Name">
-            <select id="setTime9" onchange="setupTimer(9)">
-                <option value="Not in use">Not in use</option>
-                <option value="00:00:30">30 seconds</option>
-                <option value="00:01:00">1 minute</option>
-                <option value="00:01:30">1 minute 30 seconds</option>
-                <option value="00:02:00">2 minutes</option>
-                <option value="00:02:30">2 minutes 30 seconds</option>
-                <option value="00:03:00">3 minutes</option>
-                <option value="00:03:30">3 minutes 30 seconds</option>
-                <option value="00:04:00">4 minutes</option>
-                <option value="00:04:30">4 minutes 30 seconds</option>
-                <option value="00:05:00">5 minutes</option>
-            </select>
-            <div id="time9">00:00:00</div>
-            <button onclick="startTimer(9)">Start</button>
-            <button onclick="stopTimer(9)">Stop</button>
-            <button onclick="clearTimer(9)">Released</button>
-            <select id="penaltyType9">
-                <option value="">Select Penalty Type</option>
-                <option value="Standard Foul">Foul</option>
-                <option value="Slash">Slash</option>
-                <option value="Push">Push</option>
-                <option value="Crease violation">Crease</option>
-                <option value="Crosscheck">Crosscheck</option>
-                <option value="illegal procedure">IllegalProcedure</option>
-                <option value="illegal screens">Screen</option>
-                <option value="interference">interference</option>
-                <option value="Game Misconduct">Misconduct</option>
-            </select>
-            <input type="text" id="penaltyTime9" placeholder="Time of Penalty (Hour:Min)">
-        </div>
-
-        <!-- Timer 10 -->
-        <div class="timer" id="timer10">
-            <button class="close-button" onclick="removeTimer(10)">✕</button>
-            <input type="text" id="player10" placeholder="
+                <!-- Timer 8 -->
+                <div class="timer" id="timer8">
+                    <button class="close-button" onclick="removeTimer(8)">✕</button>
+                    <input type="text" id="player8" placeholder="Player Number">
+                    <input type="text" id="team8" placeholder="Team Name">
+                    <select id="setTime8" onchange="setupTimer(8)">
+                        <option value="Not in use">Not in use</option>
+                        <option value="00:00:30">30 seconds</option>
+                        <option value="00:01:00">1 minute</option>
+                        <option value="00:01:30">1 minute 30 seconds</option>
+                        <option value="00:02:00">2 minutes</option>
+                        <option value="00:02:30">2 minutes 30 seconds</option>
+                        <option value="00:03:00">3 minutes</option>
+                        <option value="00:03:30">3 minutes 30 seconds</option>
+                        <option value="00:04:00">4 minutes</option>
+                        <option value="00:04:30">4 minutes 30 seconds</option>
+                        <option value="00:05:00">5 minutes</option>
+                    </select>
+                    <div id="time8">00:00:00</div>
+                    <button onclick="startTimer(8)">Start</button>
+                    <button onclick="stopTimer(8)">Stop</button>
+                    <button onclick="clearTimer(8)">Released</button>
+                    <select id="penaltyType8">
+                        <option value="">Select Penalty Type</option>
+                        <option value="Standard Foul">Foul</option>
+                        <option value="Slash">Slash</option>
+                        <option value="Push">Push</option>
+                        <option value="Crease violation">Crease</option>
+                        <option value="Crosscheck">Crosscheck</option>
+                        <option value="illegal procedure">IllegalProcedure</option>
+                        <option value="illegal screens">Screen</option>
+                        <option value="interference">interference</option>
+                        <option value="Game Misconduct">Misconduct</option>
+                    </select>
+                    <input type="text" id="penaltyTime8" placeholder="Time of Penalty (Hour:Min)">
+                </div>
+        
+                <!-- Timer 9 -->
+                <div class="timer" id="timer9">
+                    <button class="close-button" onclick="removeTimer(9)">✕</button>
+                    <input type="text" id="player9" placeholder="Player Number">
+                    <input type="text" id="team9" placeholder="Team Name">
+                    <select id="setTime9" onchange="setupTimer(9)">
+                        <option value="Not in use">Not in use</option>
+                        <option value="00:00:30">30 seconds</option>
+                        <option value="00:01:00">1 minute</option>
+                        <option value="00:01:30">1 minute 30 seconds</option>
+                        <option value="00:02:00">2 minutes</option>
+                        <option value="00:02:30">2 minutes 30 seconds</option>
+                        <option value="00:03:00">3 minutes</option>
+                        <option value="00:03:30">3 minutes 30 seconds</option>
+                        <option value="00:04:00">4 minutes</option>
+                        <option value="00:04:30">4 minutes 30 seconds</option>
+                        <option value="00:05:00">5 minutes</option>
+                    </select>
+                    <div id="time9">00:00:00</div>
+                    <button onclick="startTimer(9)">Start</button>
+                    <button onclick="stopTimer(9)">Stop</button>
+                    <button onclick="clearTimer(9)">Released</button>
+                    <select id="penaltyType9">
+                        <option value="">Select Penalty Type</option>
+                        <option value="Standard Foul">Foul</option>
+                        <option value="Slash">Slash</option>
+                        <option value="Push">Push</option>
+                        <option value="Crease violation">Crease</option>
+                        <option value="Crosscheck">Crosscheck</option>
+                        <option value="illegal procedure">IllegalProcedure</option>
+                        <option value="illegal screens">Screen</option>
+                        <option value="interference">interference</option>
+                        <option value="Game Misconduct">Misconduct</option>
+                    </select>
+                    <input type="text" id="penaltyTime9" placeholder="Time of Penalty (Hour:Min)">
+                </div>
+        
+                <!-- Timer 10 -->
+                <div class="timer" id="timer10">
+                    <button class="close-button" onclick="removeTimer(10)">✕</button>
+                    <input type="text" id="player10" placeholder="Player Number">
+                    <input type="text" id="team10" placeholder="Team Name">
+                    <select id="setTime10" onchange="setupTimer(10)">
+                        <option value="Not in use">Not in use</option>
+                        <option value="00:00:30">30 seconds</option>
+                        <option value="00:01:00">1 minute</option>
+                        <option value="00:01:30">1 minute 30 seconds</option>
+                        <option value="00:02:00">2 minutes</option>
+                        <option value="00:02:30">2 minutes 30 seconds</option>
+                        <option value="00:03:00">3 minutes</option>
+                        <option value="00:03:30">3 minutes 30 seconds</option>
+                        <option value="00:04:00">4 minutes</option>
+                        <option value="00:04:30">4 minutes 30 seconds</option>
+                        <option value="00:05:00">5 minutes</option>
+                    </select>
+                    <div id="time10">00:00:00</div>
+                    <button onclick="startTimer(10)">Start</button>
+                    <button onclick="stopTimer(10)">Stop</button>
+                    <button onclick="clearTimer(10)">Released</button>
+                    <select id="penaltyType10">
+                        <option value="">Select Penalty Type</option>
+                        <option value="Standard Foul">Foul</option>
+                        <option value="Slash">Slash</option>
+                        <option value="Push">Push</option>
+                        <option value="Crease violation">Crease</option>
+                        <option value="Crosscheck">Crosscheck</option>
+                        <option value="illegal procedure">IllegalProcedure</option>
+                        <option value="illegal screens">Screen</option>
+                        <option value="interference">interference</option>
+                        <option value="Game Misconduct">Misconduct</option>
+                    </select>
+                    <input type="text" id="penaltyTime10" placeholder="Time of Penalty (Hour:Min)">
+                </div>
+        
+                <!-- Timer 11 -->
+                <div class="timer" id="timer11">
+                    <button class="close-button" onclick="removeTimer(11)">✕</button>
+                    <input type="text" id="player11" placeholder="Player Number">
+                    <input type="text" id="team11" placeholder="Team Name">
+                    <select id="setTime11" onchange="setupTimer(11)">
+                        <option value="Not in use">Not in use</option>
+                        <option value="00:00:30">30 seconds</option>
+                        <option value="00:01:00">1 minute</option>
+                        <option value="00:01:30">1 minute 30 seconds</option>
+                        <option value="00:02:00">2 minutes</option>
+                        <option value="00:02:30">2 minutes 30 seconds</option>
+                        <option value="00:03:00">3 minutes</option>
+                        <option value="00:03:30">3 minutes 30 seconds</option>
+                        <option value="00:04:00">4 minutes</option>
+                        <option value="00:04:30">4 minutes 30 seconds</option>
+                        <option value="00:05:00">5 minutes</option>
+                    </select>
+                    <div id="time11">00:00:00</div>
+                    <button onclick="startTimer(11)">Start</button>
+                    <button onclick="stopTimer(11)">Stop</button>
+                    <button onclick="clearTimer(11)">Released</button>
+                    <select id="penaltyType11">
+                        <option value="">Select Penalty Type</option>
+                        <option value="Standard Foul">Foul</option>
+                        <option value="Slash">Slash</option>
+                        <option value="Push">Push</option>
+                        <option value="Crease violation">Crease</option>
+                        <option value="Crosscheck">Crosscheck</option>
+                        <option value="illegal procedure">IllegalProcedure</option>
+                        <option value="illegal screens">Screen</option>
+                        <option value="interference">interference</option>
+                        <option value="Game Misconduct">Misconduct</option>
+                    </select>
+                    <input type="text" id="penaltyTime11" placeholder="Time of Penalty (Hour:Min)">
+                </div>
+        
+                <!-- Timer 12 -->
+                <div class="timer" id="timer12">
+                    <button class="close-button" onclick="removeTimer(12)">✕</button>
+                    <input type="text" id="player12" placeholder="Player Number">
+                    <input type="text" id="team12" placeholder="Team Name">
+                    <select id="setTime12" onchange="setupTimer(12)">
+                        <option value="Not in use">Not in use</option>
+                        <option value="00:00:30">30 seconds</option>
+                        <option value="00:01:00">1 minute</option>
+                        <option value="00:01:30">1 minute 30 seconds</option>
+                        <option value="00:02:00">2 minutes</option>
+                        <option value="00:02:30">2 minutes 30 seconds</option>
+                        <option value="00:03:00">3 minutes</option>
+                        <option value="00:03:30">3 minutes 30 seconds</option>
+                        <option value="00:04:00">4 minutes</option>
+                        <option value="00:04:30">4 minutes 30 seconds</option>
+                        <option value="00:05:00">5 minutes</option>
+                    </select>
+                    <div id="time12">00:00:00</div>
+                    <button onclick="startTimer(12)">Start</button>
+                    <button onclick="stopTimer(12)">Stop</button>
+                    <button onclick="clearTimer(12)">Released</button>
+                    <select id="penaltyType12">
+                        <option value="">Select Penalty Type</option>
+                        <option value="Standard Foul">Foul</option>
+                        <option value="Slash">Slash</option>
+                        <option value="Push">Push</option>
+                        <option value="Crease violation">Crease</option>
+                        <option value="Crosscheck">Crosscheck</option>
+                        <option value="illegal procedure">IllegalProcedure</option>
+                        <option value="illegal screens">Screen</option>
+                        <option value="interference">interference</option>
+                        <option value="Game Misconduct">Misconduct</option>
+                    </select>
+                    <input type="text" id="penaltyTime12" placeholder="Time of Penalty (Hour:Min)">
+                </div>
+        
+                <!-- Timer 13 -->
+                <div class="timer" id="timer13">
+                    <button class="close-button" onclick="removeTimer(13)">✕</button>
+                    <input type="text" id="player13" placeholder="Player Number">
+                    <input type="text" id="team13" placeholder="Team Name">
+                    <select id="setTime13" onchange="setupTimer(13)">
+                        <option value="Not in use">Not in use</option>
+                        <option value="00:00:30">30 seconds</option>
+                        <option value="00:01:00">1 minute</option>
+                        <option value="00:01:30">1 minute 30 seconds</option>
+                        <option value="00:02:00">2 minutes</option>
+                        <option value="00:02:30">2 minutes 30 seconds</option>
+                        <option value="00:03:00">3 minutes</option>
+                        <option value="00:03:30">3 minutes 30 seconds</option>
+                        <option value="00:04:00">4 minutes</option>
+                        <option value="00:04:30">4 minutes 30 seconds</option>
+                        <option value="00:05:00">5 minutes</option>
+                    </select>
+                    <div id="time13">00:00:00</div>
+                    <button onclick="startTimer(13)">Start</button>
+                    <button onclick="stopTimer(13)">Stop</button>
+                    <button onclick="clearTimer(13)">Released</button>
+                    <select id="penaltyType13">
+                        <option value="">Select Penalty Type</option>
+                        <option value="Standard Foul">Foul</option>
+                        <option value="Slash">Slash</option>
+                        <option value="Push">Push</option>
+                        <option value="Crease violation">Crease</option>
+                        <option value="Crosscheck">Crosscheck</option>
+                        <option value="illegal procedure">IllegalProcedure</option>
+                        <option value="illegal screens">Screen</option>
+                        <option value="interference">interference</option>
+                        <option value="Game Misconduct">Misconduct</option>
+                    </select>
+                    <input type="text" id="penaltyTime13" placeholder="Time of Penalty (Hour:Min)">
+                </div>
+        
+                <!-- Timer 14 -->
+                <div class="timer" id="timer14">
+                    <button class="close-button" onclick="removeTimer(14)">✕</button>
+                    <input type="text" id="player14" placeholder="Player Number">
+                    <input type="text" id="team14" placeholder="Team Name">
+                    <select id="setTime14" onchange="setupTimer(14)">
+                        <option value="Not in use">Not in use</option>
+                        <option value="00:00:30">30 seconds</option>
+                        <option value="00:01:00">1 minute</option>
+                        <option value="00:01:30">1 minute 30 seconds</option>
+                        <option value="00:02:00">2 minutes</option>
+                        <option value="00:02:30">2 minutes 30 seconds</option>
+                        <option value="00:03:00">3 minutes</option>
+                        <option value="00:03:30">3 minutes 30 seconds</option>
+                        <option value="00:04:00">4 minutes</option>
+                        <option value="00:04:30">4 minutes 30 seconds</option>
+                        <option value="00:05:00">5 minutes</option>
+                    </select>
+                    <div id="time14">00:00:00</div>
+                    <button onclick="startTimer(14)">Start</button>
+                    <button onclick="stopTimer(14)">Stop</button>
+                    <button onclick="clearTimer(14)">Released</button>
+                    <select id="penaltyType14">
+                        <option value="">Select Penalty Type</option>
+                        <option value="Standard Foul">Foul</option>
+                        <option value="Slash">Slash</option>
+                        <option value="Push">Push</option>
+                        <option value="Crease violation">Crease</option>
+                        <option value="Crosscheck">Crosscheck</option>
+                        <option value="illegal procedure">IllegalProcedure</option>
+                        <option value="illegal screens">Screen</option>
+                        <option value="interference">interference</option>
+                        <option value="Game Misconduct">Misconduct</option>
+                    </select>
+                    <input type="text" id="penaltyTime14" placeholder="Time of Penalty (Hour:Min)">
+                </div>
+        
+                <!-- Timer 15 -->
+                <div class="timer" id="timer15">
+                    <button class="close-button" onclick="removeTimer(15)">✕</button>
+                    <input type="text" id="player15" placeholder="Player Number">
+                    <input type="text" id="team15" placeholder="Team Name">
+                    <select id="setTime15" onchange="setupTimer(15)">
+                        <option value="Not in use">Not in use</option>
+                        <option value="00:00:30">30 seconds</option>
+                        <option value="00:01:00">1 minute</option>
+                        <option value="00:01:30">1 minute 30 seconds</option>
+                        <option value="00:02:00">2 minutes</option>
+                        <option value="00:02:30">2 minutes 30 seconds</option>
+                        <option value="00:03:00">3 minutes</option>
+                        <option value="00:03:30">3 minutes 30 seconds</option>
+                        <option value="00:04:00">4 minutes</option>
+                        <option value="00:04:30">4 minutes 30 seconds</option>
+                        <option value="00:05:00">5 minutes</option>
+                    </select>
+                    <div id="time15">00:00:00</div>
+                    <button onclick="startTimer(15)">Start</button>
+                    <button onclick="stopTimer(15)">Stop</button>
+                    <button onclick="clearTimer(15)">Released</button>
+                    <select id="penaltyType15">
+                        <option value="">Select Penalty Type</option>
+                        <option value="Standard Foul">Foul</option>
+                        <option value="Slash">Slash</option>
+                        <option value="Push">Push</option>
+                        <option value="Crease violation">Crease</option>
+                        <option value="Crosscheck">Crosscheck</option>
+                        <option value="illegal procedure">IllegalProcedure</option>
+                        <option value="illegal screens">Screen</option>
+                        <option value="interference">interference</option>
+                        <option value="Game Misconduct">Misconduct</option>
+                    </select>
+                    <input type="text" id="penaltyTime15" placeholder="Time of Penalty (Hour:Min)">
+                </div>
+        
+            </main>
+            <footer></footer>
+        
+            <div class="control-buttons">
+                <button onclick="startAllTimers()">Start All</button>
+                <button onclick="pauseAllTimers()">Pause All</button>
+                <button onclick="resumeAllTimers()">Resume All</button>
+                <button onclick="stopAllTimers()">Stop All</button>
+            </div>
+        
+            <script>
+                // Initialize all timers when the page loads
+                document.addEventListener('DOMContentLoaded', function() {
+                    for (let i = 1; i <= 15; i++) {
+                        setupTimer(i);
+                    }
+                });
+            </script>
+        </body>
+        </html>
+        
