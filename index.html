@@ -51,48 +51,13 @@
             width: auto;
             flex-grow: 1;
         }
-        .control-buttons {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #007BFF;
-            color: white;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            flex-wrap: wrap;
-        }
-        .control-buttons button {
-            margin: 5px;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            background: white;
-            color: #007BFF;
-            font-weight: bold;
-            cursor: pointer;
-            flex: 1;
-            min-width: 120px;
-            max-width: 200px;
-        }
         main {
             padding-top: 20px;
-            padding-bottom: 100px;
+            padding-bottom: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
             overflow: auto;
-        }
-        footer {
-            text-align: center;
-            padding: 10px;
-            font-size: 16px;
-            position: fixed;
-            bottom: 70px;
-            left: 0;
-            right: 0;
-            background-color: #ddd;
         }
         .settings-button {
             position: fixed;
@@ -141,6 +106,9 @@
             max-width: 400px;
             text-align: center;
             border-radius: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
         .game-clock-display {
             font-size: 36px;
@@ -150,6 +118,17 @@
         .quarter-display {
             font-size: 24px;
             margin: 10px 0;
+        }
+        .game-clock button {
+            background-color: white;
+            color: #007BFF;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            margin: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            width: auto;
         }
         .modal {
             display: none;
@@ -181,13 +160,9 @@
             padding: 10px 20px;
         }
         @media (max-width: 600px) {
-            .control-buttons {
-                padding-bottom: env(safe-area-inset-bottom);
-            }
-            .control-buttons button {
+            .game-clock button {
                 font-size: 14px;
                 padding: 8px 12px;
-                min-width: 100px;
             }
         }
     </style>
@@ -918,7 +893,6 @@
             <input type="text" id="penaltyTime10" placeholder="Time of Penalty (Hour:Min)">
         </div>
 
-
         <!-- Timer 11 -->
         <div class="timer" id="timer11">
             <button class="close-button" onclick="removeTimer(11)">✕</button>
@@ -1104,14 +1078,6 @@
             <input type="text" id="penaltyTime15" placeholder="Time of Penalty (Hour:Min)">
         </div>
     </main>
-    <footer></footer>
-
-    <div class="control-buttons">
-        <button onclick="startAllTimers()">Start All</button>
-        <button onclick="pauseAllTimers()">Pause All</button>
-        <button onclick="resumeAllTimers()">Resume All</button>
-        <button onclick="stopAllTimers()">Stop All</button>
-    </div>
 
     <script>
         // Initialize all timers when the page loads
@@ -1123,3 +1089,4 @@
     </script>
 </body>
 </html>
+
