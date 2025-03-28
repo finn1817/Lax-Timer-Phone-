@@ -3,463 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Timer App</title>
+    <title>Lacrosse Timer App - Mobile</title>
     <style>
         body, html {
             height: 100%;
             margin: 0;
             font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            background-color: #f4f4f4;
+            background-color: #e6f2ff;
+            text-align: center;
+        }
+        .container {
+            width: 90%;
+            max-width: 400px;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
         }
         .timer {
-            margin: 10px auto;
-            padding: 20px;
-            background: #fff;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            width: 90%;
-            max-width: 300px;
-            text-align: center;
-        }
-        input, button, select {
-            margin: 5px;
-            padding: 10px;
-            font-size: 16px;
-            width: 90%;
-            box-sizing: border-box;
-        }
-        button {
-            width: auto;
-            flex-grow: 1;
-        }
-        .control-buttons {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #007BFF;
-            color: white;
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-        }
-        header {
-            width: 100%;
-            text-align: center;
             font-size: 24px;
-            padding: 20px;
-            background-color: #007BFF;
-            color: white;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-        }
-        main {
-            padding-top: 70px;
-            padding-bottom: 50px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow: auto;
-        }
-        footer {
-            text-align: center;
-            padding: 10px;
-            font-size: 16px;
-            position: fixed;
-            bottom: 50px;
-            left: 0;
-            right: 0;
-            background-color: #ddd;
-        }
-        .timer-container {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .add-remove-buttons {
-            display: flex;
-            justify-content: center;
             margin: 10px 0;
-            width: 100%;
         }
-        .add-remove-buttons button {
-            margin: 0 5px;
-            padding: 8px 15px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 4px;
-        }
-        .notification {
-            position: fixed;
-            top: 70px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #4CAF50;
-            color: white;
-            padding: 15px;
-            border-radius: 5px;
-            z-index: 1001;
-            display: none;
+        .controls button {
+            margin: 5px;
+            padding: 10px 15px;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
-    <header>This is a Lacrosse Timer Website - © Dan Finn</header>
-    <div id="notification" class="notification"></div>
-    <main>
-        <div class="add-remove-buttons">
-            <button onclick="addTimer()">Add Timer</button>
-            <button onclick="removeTimer()">Remove Timer</button>
-        </div>
-        <div id="timer-container" class="timer-container">
-            <!-- Timers will be added here dynamically -->
-        </div>
-    </main>
-    <footer></footer>
-
-    <div class="control-buttons">
-        <button onclick="startAllTimers()">Start All</button>
-        <button onclick="stopAllTimers()">Stop All</button>
-        <button onclick="resumeAllTimers()">Resume All</button>
-        <button onclick="saveData()">Save</button>
+    <div class="container">
+        <h2>Lacrosse Timer App - Mobile</h2>
+        <div id="timers"></div>
+        <button onclick="addTimer()">Add Timer</button>
     </div>
 
     <script>
-        // Global variables
-        let intervals = {}; // Store interval IDs for each timer
-        let pausedTimes = {}; // Store paused times for each timer
-        let timerCount = 0; // Counter for timers
-        let timerData = {}; // Store all timer data
+        let timers = JSON.parse(localStorage.getItem("timers")) || [];
 
-        // Initialize the app
-        document.addEventListener('DOMContentLoaded', function() {
-            // Load saved data if available
-            loadData();
-            
-            // If no timers were loaded, add two default timers
-            if (timerCount === 0) {
-                addTimer();
-                addTimer();
-            }
-        });
-
-        // Function to create a new timer
-        function addTimer() {
-            timerCount++;
-            const index = timerCount;
-            
-            // Create timer HTML
-            const timerHTML = `
-                <div class="timer" id="timer${index}">
-                    <input type="text" id="player${index}" placeholder="Player Number">
-                    <input type="text" id="team${index}" placeholder="Team Name">
-                    <select id="setTime${index}" onchange="setupTimer(${index})">
-                        <option value="Not in use">Not in use</option>
-                        <option value="00:00:30">30 seconds</option>
-                        <option value="00:01:00">1 minute</option>
-                        <option value="00:01:30">1 minute 30 seconds</option>
-                        <option value="00:02:00">2 minutes</option>
-                        <option value="00:02:30">2 minutes 30 seconds</option>
-                        <option value="00:03:00">3 minutes</option>
-                        <option value="00:03:30">3 minutes 30 seconds</option>
-                        <option value="00:04:00">4 minutes</option>
-                        <option value="00:04:30">4 minutes 30 seconds</option>
-                        <option value="00:05:00">5 minutes</option>
-                    </select>
-                    <div id="time${index}">00:00:00</div>
-                    <div style="display: flex; justify-content: center; margin: 10px 0;">
-                        <button onclick="startTimer(${index})">Start</button>
-                        <button onclick="stopTimer(${index})">Stop</button>
-                        <button onclick="clearTimer(${index})">Released</button>
-                    </div>
-                    <select id="penaltyType${index}">
-                        <option value="">Select Penalty Type</option>
-                        <option value="Standard Foul">Foul</option>
-                        <option value="Slash">Slash</option>
-                        <option value="Push">Push</option>
-                        <option value="Crease violation">Crease</option>
-                        <option value="Crosscheck">Crosscheck</option>
-                        <option value="illegal procedure">IllegalProcedure</option>
-                        <option value="illegal screens">Screen</option>
-                        <option value="interference">Interference</option>
-                        <option value="Game Misconduct">Misconduct</option>
-                    </select>
-                    <input type="text" id="penaltyTime${index}" placeholder="Time of Penalty (Hour:Min)">
-                </div>
-            `;
-            
-            // Add timer to container
-            document.getElementById('timer-container').insertAdjacentHTML('beforeend', timerHTML);
-            
-            // Initialize timer data
-            pausedTimes[index] = 0;
-            timerData[index] = {
-                playerNumber: '',
-                teamName: '',
-                timeSelection: 'Not in use',
-                penaltyType: '',
-                penaltyTime: ''
-            };
-            
-            return index;
+        function updateStorage() {
+            localStorage.setItem("timers", JSON.stringify(timers));
         }
 
-        // Function to remove the last timer
-        function removeTimer() {
-            if (timerCount > 1) {
-                // Stop the timer if running
-                stopTimer(timerCount);
-                
-                // Remove the timer element
-                const timerElement = document.getElementById(`timer${timerCount}`);
-                if (timerElement) {
-                    timerElement.remove();
-                }
-                
-                // Remove from data structures
-                delete intervals[timerCount];
-                delete pausedTimes[timerCount];
-                delete timerData[timerCount];
-                
-                timerCount--;
-                
-                // Save the updated state
-                saveData();
-            }
+        function formatTime(seconds) {
+            let min = Math.floor(seconds / 60);
+            let sec = seconds % 60;
+            return `${min}:${sec < 10 ? '0' : ''}${sec}`;
         }
 
-        // Function to set up a timer based on selected time
-        function setupTimer(index) {
-            const select = document.getElementById(`setTime${index}`);
-            const display = document.getElementById(`time${index}`);
-            
-            if (!select || !display) {
-                console.error('Element not found for index:', index);
-                return;
-            }
-            
-            // Update timer data
-            timerData[index].timeSelection = select.value;
-            
-            // Convert time string to seconds
-            pausedTimes[index] = hmsToSecondsOnly(select.value);
-            display.textContent = secondsToHMS(pausedTimes[index]);
-            
-            // Save the updated state
-            saveData();
-        }
-
-        // Function to start a timer
         function startTimer(index) {
-            const display = document.getElementById(`time${index}`);
-            
-            // Clear existing interval
-            clearInterval(intervals[index]);
-            
-            // Start a new interval
-            intervals[index] = setInterval(() => {
-                if (pausedTimes[index] > 0) {
-                    pausedTimes[index]--;
-                    display.textContent = secondsToHMS(pausedTimes[index]);
-                    
-                    // Save the updated state
-                    saveData();
-                } else {
-                    clearInterval(intervals[index]);
-                }
-            }, 1000);
-        }
-
-        // Function to stop a timer
-        function stopTimer(index) {
-            clearInterval(intervals[index]);
-        }
-
-        // Function to clear a timer
-        function clearTimer(index) {
-            clearInterval(intervals[index]);
-            pausedTimes[index] = 0;
-            
-            const display = document.getElementById(`time${index}`);
-            display.textContent = '00:00:00';
-            
-            // Save the updated state
-            saveData();
-        }
-
-        // Function to start all timers
-        function startAllTimers() {
-            for (let i = 1; i <= timerCount; i++) {
-                startTimer(i);
+            if (!timers[index].running) {
+                timers[index].running = true;
+                timers[index].interval = setInterval(() => {
+                    timers[index].seconds++;
+                    updateTimerDisplay(index);
+                    updateStorage();
+                }, 1000);
             }
         }
 
-        // Function to stop all timers
-        function stopAllTimers() {
-            for (let i = 1; i <= timerCount; i++) {
-                stopTimer(i);
-            }
+        function pauseTimer(index) {
+            clearInterval(timers[index].interval);
+            timers[index].running = false;
+            updateStorage();
         }
 
-        // Function to resume all timers
-        function resumeAllTimers() {
-            for (let i = 1; i <= timerCount; i++) {
-                if (pausedTimes[i] > 0) {
-                    startTimer(i);
-                }
-            }
+        function resetTimer(index) {
+            clearInterval(timers[index].interval);
+            timers[index].seconds = 0;
+            timers[index].running = false;
+            updateTimerDisplay(index);
+            updateStorage();
         }
 
-        // Function to convert seconds to HH:MM:SS format
-        function secondsToHMS(secs) {
-            const hours = Math.floor(secs / 3600);
-            const minutes = Math.floor((secs % 3600) / 60);
-            const seconds = secs % 60;
-            return [hours, minutes, seconds].map(v => v < 10 ? "0" + v : v).join(":");
+        function deleteTimer(index) {
+            clearInterval(timers[index].interval);
+            timers.splice(index, 1);
+            renderTimers();
+            updateStorage();
         }
 
-        // Function to convert HH:MM:SS string to seconds
-        function hmsToSecondsOnly(str) {
-            if (str === "Not in use") return 0;
-            
-            var p = str.split(':'), s = 0, m = 1;
-            while (p.length > 0) {
-                s += m * parseInt(p.pop(), 10);
-                m *= 60;
-            }
-            return s;
+        function updateTimerDisplay(index) {
+            document.getElementById(`timer-${index}`).innerText = formatTime(timers[index].seconds);
         }
 
-        // Function to save all timer data
-        function saveData() {
-            // Collect current data from all timers
-            for (let i = 1; i <= timerCount; i++) {
-                const playerInput = document.getElementById(`player${i}`);
-                const teamInput = document.getElementById(`team${i}`);
-                const timeSelect = document.getElementById(`setTime${i}`);
-                const penaltyTypeSelect = document.getElementById(`penaltyType${i}`);
-                const penaltyTimeInput = document.getElementById(`penaltyTime${i}`);
-                
-                if (playerInput && teamInput && timeSelect && penaltyTypeSelect && penaltyTimeInput) {
-                    timerData[i] = {
-                        playerNumber: playerInput.value,
-                        teamName: teamInput.value,
-                        timeSelection: timeSelect.value,
-                        remainingTime: pausedTimes[i],
-                        penaltyType: penaltyTypeSelect.value,
-                        penaltyTime: penaltyTimeInput.value
-                    };
-                }
-            }
-            
-            // Save to localStorage
-            const saveData = {
-                timestamp: new Date().toISOString(),
-                timerCount: timerCount,
-                timers: timerData
-            };
-            
-            localStorage.setItem('lacrosseTimerData', JSON.stringify(saveData));
-            
-            // Show notification
-            showNotification('Data saved successfully!');
+        function addTimer() {
+            timers.push({ seconds: 0, running: false });
+            renderTimers();
+            updateStorage();
         }
 
-        // Function to load saved data
-        function loadData() {
-            const savedData = localStorage.getItem('lacrosseTimerData');
-            
-            if (savedData) {
-                try {
-                    const data = JSON.parse(savedData);
-                    
-                    // Clear existing timers
-                    document.getElementById('timer-container').innerHTML = '';
-                    
-                    // Reset global variables
-                    intervals = {};
-                    pausedTimes = {};
-                    timerData = {};
-                    
-                    // Set timer count
-                    timerCount = data.timerCount || 0;
-                    
-                    // Create timers based on saved data
-                    for (let i = 1; i <= timerCount; i++) {
-                        if (data.timers[i]) {
-                            // Add a new timer
-                            addTimer();
-                            
-                            // Set values
-                            const playerInput = document.getElementById(`player${i}`);
-                            const teamInput = document.getElementById(`team${i}`);
-                            const timeSelect = document.getElementById(`setTime${i}`);
-                            const display = document.getElementById(`time${i}`);
-                            const penaltyTypeSelect = document.getElementById(`penaltyType${i}`);
-                            const penaltyTimeInput = document.getElementById(`penaltyTime${i}`);
-                            
-                            if (playerInput && data.timers[i].playerNumber) {
-                                playerInput.value = data.timers[i].playerNumber;
-                            }
-                            
-                            if (teamInput && data.timers[i].teamName) {
-                                teamInput.value = data.timers[i].teamName;
-                            }
-                            
-                            if (timeSelect && data.timers[i].timeSelection) {
-                                timeSelect.value = data.timers[i].timeSelection;
-                            }
-                            
-                            if (penaltyTypeSelect && data.timers[i].penaltyType) {
-                                penaltyTypeSelect.value = data.timers[i].penaltyType;
-                            }
-                            
-                            if (penaltyTimeInput && data.timers[i].penaltyTime) {
-                                penaltyTimeInput.value = data.timers[i].penaltyTime;
-                            }
-                            
-                            // Set remaining time
-                            pausedTimes[i] = data.timers[i].remainingTime || 0;
-                            
-                            if (display) {
-                                display.textContent = secondsToHMS(pausedTimes[i]);
-                            }
-                            
-                            // Store timer data
-                            timerData[i] = data.timers[i];
-                        }
-                    }
-                    
-                    showNotification('Data loaded successfully!');
-                } catch (error) {
-                    console.error('Error loading saved data:', error);
-                    // If there's an error, start with default timers
-                    timerCount = 0;
-                }
-            }
+        function renderTimers() {
+            let timersDiv = document.getElementById("timers");
+            timersDiv.innerHTML = "";
+            timers.forEach((timer, index) => {
+                let timerDiv = document.createElement("div");
+                timerDiv.className = "timer-container";
+                timerDiv.innerHTML = `
+                    <div class="timer" id="timer-${index}">${formatTime(timer.seconds)}</div>
+                    <div class="controls">
+                        <button onclick="startTimer(${index})">Start</button>
+                        <button onclick="pauseTimer(${index})">Pause</button>
+                        <button onclick="resetTimer(${index})">Reset</button>
+                        <button onclick="deleteTimer(${index})">Delete</button>
+                    </div>
+                `;
+                timersDiv.appendChild(timerDiv);
+            });
         }
 
-        // Function to show a notification
-        function showNotification(message) {
-            const notification = document.getElementById('notification');
-            notification.textContent = message;
-            notification.style.display = 'block';
-            
-            // Hide after 3 seconds
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 3000);
-        }
-
-        // Auto-save data every minute
-        setInterval(saveData, 60000);
+        renderTimers(); // Initialize UI on load
     </script>
 </body>
 </html>
